@@ -209,6 +209,9 @@ class Servblr:
 		if key in result['unread_messages']:
 			result['unread_messages'] = result['unread_messages'][key]
 
+		if 'next_from' in result:
+			del result['next_from']
+
 		return result
 
 
