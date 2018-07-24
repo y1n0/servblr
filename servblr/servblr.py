@@ -63,14 +63,15 @@ class Servblr:
 			setattr(self, k, v)
 
 
-	def get_counts(self, others={}):
+	def get_counts(self, others=False):
 		if others:
 			others = {
 				'notifications': True,	# reblog, like, etc notfications
 				'unread': True,	# news feed unread
 				'inbox': True}	# asks (and submissions, maybe)
-
-		return self._counts(others=others)
+			return self._counts(others=others)
+		else:
+			return self._counts()['unread_messages']
 
 
 	def get_chats(self):
