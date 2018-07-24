@@ -63,31 +63,14 @@ class Servblr:
 			setattr(self, k, v)
 
 
-	def get_counts(self, others=False):
-		key = self._key
-		endpoint = 'https://www.tumblr.com/svc/user/counts'
-		params = {
-			'mention_keys': key,	# eliminate other blogs counts
-			'unread_messages': True,	# This is what we care for
-			}
-
+	def get_counts(self, others={}):
 		if others:
 			others = {
 				'notifications': True,	# reblog, like, etc notfications
 				'unread': True,	# news feed unread
 				'inbox': True}	# asks (and submissions, maybe)
-			params.update(others)
 
-		result = self._query(methods.GET, endpoint, params)
-
-		# if status is 'ok', result do not have 'meta'
-		if 'meta' in result:
-			_is_meta_ok(result)
-
-		if key in result['unread_messages']:
-			result['unread_messages'] = result['unread_messages'][key]
-
-		return result
+		return self._counts(others=others)
 
 
 	def get_chats(self):
@@ -195,7 +178,41 @@ class Servblr:
 		return msg
 
 
-	def _query(self, method, endpoint, params):
+	def _counts(self, **kwargs):
+		"""
+		`additional_opts` list of (pycurl.OPT, val) for pycurl object
+		`others` dict of query parametres
+		"""
+		key = self._key
+		query_opts = {'method': methods.GET}
+		query_opts['endpoint'] = 'https://www.tumblr.com/svc/user/counts'
+		query_opts['params'] = {
+			'mention_keys': key,	# eliminate other blogs counts
+			'unread_messages': True,	# This is what we care for
+			}
+
+		if 'others' in kwargs:
+			others = kwargs['others']
+			query_opts['params'].update(others)
+
+		if 'additional_opts' in kwargs:
+			additional_opts = kwargs['additional_opts']
+			query_opts['additional_opts'] = additional_opts
+
+		result = self._query(**query_opts)
+
+		# if status is 'ok', result do not have 'meta'
+		# if there IS a 'meta', we could do a check (although not necessary)
+		if 'meta' in result:
+			_is_meta_ok(result)
+
+		if key in result['unread_messages']:
+			result['unread_messages'] = result['unread_messages'][key]
+
+		return result
+
+
+	def _query(self, method, endpoint, params, additional_opts=[]):
 		res_buffer = io.BytesIO()
 		c = pycurl.Curl()
 		c.setopt(pycurl.VERBOSE, 0)
@@ -208,8 +225,8 @@ class Servblr:
 		# c.setopt(pycurl.COOKIEFILE, self.cookies_path)
 		# c.setopt(pycurl.COOKIEJAR, self.cookies_path)
 
-		# merging option from self._curl_opts
-		for item in self._curl_opts:
+		# merging option from additional_opts
+		for item in additional_opts:
 			c.setopt(*item)
 
 		if method == methods.GET:
