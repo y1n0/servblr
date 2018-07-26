@@ -210,8 +210,8 @@ class Servblr:
 					last_ts = messages[-1].date
 
 					for m in messages:
-						#pending_q.put(m)
-						callback(m)
+						pending_q.put(m)
+						# callback(m)
 
 
 				# sleep handler, for now, just sleep(1)
