@@ -1,5 +1,6 @@
 import getopt, shlex, pycurl
 import time, json, io
+import threading, queue
 from urllib.parse import urlencode
 from .userblr import Userblr
 from .chatblr import Chatblr
@@ -177,6 +178,69 @@ class Servblr:
 		msg = Msgblr.de_json(msg, chat_id)
 
 		return msg
+
+
+	def poll(self, callback, allowed=None):
+		"""
+		poll for new messages.
+		`callback` should have the minimum execution time. (why tho?)
+		Setting `allowed` to a falsy value will allow everything
+		"""
+		def check_unread():
+			timeout_opt = (pycurl.TIMEOUT_MS, 0)
+			# this could raise errors
+			r = self._counts(additional_opts=[timeout_opt])
+			return r['unread_messages']
+
+		def poll_for_new():
+			last_ts = 0
+			while not stahp_sig:
+				unread = check_unread()
+				#!! Why are we only acting on unread?
+				# We should act on every new message, incoming or outgoing.
+				for chat_id in unread:
+					if allowed and chat_id not in allowed:
+						continue
+
+					limit = unread[chat_id] + 5
+					messages = self.get_messages(chat_id, limit=limit)
+
+					# eliminating the message already gotten
+					messages = [m for m in messages if m.date > last_ts]
+					last_ts = messages[-1].date
+
+					for m in messages:
+						#pending_q.put(m)
+						callback(m)
+
+
+				# sleep handler, for now, just sleep(1)
+				#time.sleep(1)
+
+		def handle_new():
+			while news_poller.is_alive() or not pending_q.empty():
+				# The condition above is not effective as the get() below
+				# will be blocking most of the time. Should we consider 
+				# a timeout?
+				msg = pending_q.get()
+				ret = callback(msg)
+				pending_q.task_done()
+
+		pending_q = queue.Queue(maxsize=10)
+
+		stahp_sig = False
+		news_poller = threading.Thread(target=poll_for_new, name='news_poller')
+		print('starting polling')
+		# poll_for_new()
+		news_poller.start()
+
+		try:
+			handle_new()
+		except KeyboardInterrupt:
+			pass
+
+		stahp_sig = True
+		news_poller.join()
 
 
 	def _counts(self, **kwargs):
