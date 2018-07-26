@@ -3,6 +3,14 @@
 def _short_user_id(user_id):
 	return user_id.split('.')[0]
 
+def _ts_float(ts):
+	if type(ts) is float:
+		return ts
+	else:
+		ts = str(ts)
+		return float(ts[:10]+'.'+ts[-3:])
+
+
 class Msgblr(object):
 	@staticmethod
 	def de_json(json, chat=None):
@@ -15,13 +23,13 @@ class Msgblr(object):
 			return TextMsg( text = json['message'],
 				chat = chat,
 				author = _short_user_id(json['participant']),
-				date = json['ts'])
+				date = _ts_float(json['ts']))
 
 		elif json['type'] == 'IMAGE':
 			return ImageMsg(image_url = json['images'][0]['original_size']['url'],
 			chat = chat,
 			author = _short_user_id(json['participant']),
-			date = json['ts'])
+			date = _ts_float(json['ts']))
 
 		elif json['type'] == 'POSTREF':
 			return PostMsg()
