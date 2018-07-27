@@ -9,6 +9,7 @@ setuptools.setup(
     license="MIT",
     author="y1n0",
     author_email="y1n0@pm.me",
+    install_requires=["pycurl"],
     description="A Tumblr instant messages wrapper in Python",
     long_description=long_description,
     long_description_content_type="text/markdown",
