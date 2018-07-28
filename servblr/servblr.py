@@ -179,12 +179,9 @@ class Servblr:
 
 		return msg
 
-
-	def poll(self, callback, allowed=None):
+	def poll(self, queue, allowed=None):
 		"""
-		poll for new messages.
-		`callback` should have the minimum execution time. (why tho?)
-		Setting `allowed` to a falsy value will allow everything
+		poll for new messages (incoming and outgoing) and enqueue to `queue`.
 		"""
 		def check_unread():
 			timeout_opt = (pycurl.TIMEOUT_MS, 0)
@@ -192,55 +189,47 @@ class Servblr:
 			r = self._counts(additional_opts=[timeout_opt])
 			return r['unread_messages']
 
-		def poll_for_new():
-			last_ts = 0
-			while not stahp_sig:
-				unread = check_unread()
-				#!! Why are we only acting on unread?
-				# We should act on every new message, incoming or outgoing.
-				for chat_id in unread:
-					if allowed and chat_id not in allowed:
-						continue
+		SEC, MIN, HR = 1, 60, 3600
+		wait_time = {
+			30*SEC: 0,
+			1*MIN: 1,
+			5*MIN: 2,
+			20*MIN: 5,
+			1*HR: 45,
+			2*HR: 60,
+			5*HR: 90 }
 
-					limit = unread[chat_id] + 5
-					messages = self.get_messages(chat_id, limit=limit)
+		last_ts = time.time()
+		while True:
+			unread = check_unread()
+			#!! Why are we only acting on unread?
+			# We should act on every new message, incoming or outgoing.
+			for chat_id in unread:
+				if allowed and chat_id not in allowed:
+					continue
 
-					# eliminating the message already gotten
-					messages = [m for m in messages if m.date > last_ts]
-					last_ts = messages[-1].date
+				limit = unread[chat_id] + 5
+				messages = self.get_messages(chat_id, limit=limit)
 
-					for m in messages:
-						pending_q.put(m)
-						# callback(m)
+				# eliminating the message already gotten
+				messages = [m for m in messages if m.date > last_ts]
+				last_ts = messages[-1].date
 
+				for m in messages:
+					queue.put_nowait(m)
 
-				# sleep handler, for now, just sleep(1)
-				#time.sleep(1)
+			# sleep	handler
+			tdelta = time.time() - last_ts
 
-		def handle_new():
-			while news_poller.is_alive() or not pending_q.empty():
-				# The condition above is not effective as the get() below
-				# will be blocking most of the time. Should we consider 
-				# a timeout?
-				msg = pending_q.get()
-				ret = callback(msg)
-				pending_q.task_done()
+			for i in sorted(wait_time):
+				if tdelta <= i:
+					wait_t = wait_time[i]
+					break
 
-		pending_q = queue.Queue(maxsize=10)
-
-		stahp_sig = False
-		news_poller = threading.Thread(target=poll_for_new, name='news_poller')
-		print('starting polling')
-		# poll_for_new()
-		news_poller.start()
-
-		try:
-			handle_new()
-		except KeyboardInterrupt:
-			pass
-
-		stahp_sig = True
-		news_poller.join()
+			try:
+				time.sleep(wait_t)
+			except NameError:
+				break
 
 
 	def _counts(self, **kwargs):
