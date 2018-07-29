@@ -191,7 +191,7 @@ class Servblr:
 
 		SEC, MIN, HR = 1, 60, 3600
 		wait_time = {
-			30*SEC: 0,
+			30*SEC: 1,
 			1*MIN: 1,
 			5*MIN: 2,
 			20*MIN: 5,
