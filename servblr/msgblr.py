@@ -32,7 +32,11 @@ class Msgblr(object):
 			date = _ts_float(json['ts']))
 
 		elif json['type'] == 'POSTREF':
-			return PostMsg()
+			return PostMsg(
+				post= json['post'],
+				chat = chat,
+				author = _short_user_id(json['participant']),
+				date = _ts_float(json['ts']))
 
 		else:
 			raise TypeError
@@ -55,5 +59,9 @@ class ImageMsg(Msgblr):
 
 
 class PostMsg(Msgblr):
-	def __init__(self):
-		pass
+	def __init__(self, post, chat, author, date):
+		self.post = post
+		self.chat = chat
+		self.author = author
+		self.date = date
+
