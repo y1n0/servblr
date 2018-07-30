@@ -1,11 +1,14 @@
 import getopt, shlex, pycurl
 import time, json, io
 import threading, queue
+import logging
 from urllib.parse import urlencode
 from .userblr import Userblr
 from .chatblr import Chatblr
 from .msgblr import Msgblr, TextMsg, ImageMsg
 
+
+logger = logging.getLogger(__package__)
 
 
 def _long_user_id(user_id):
@@ -179,10 +182,12 @@ class Servblr:
 
 		return msg
 
+
 	def poll(self, queue, allowed=None):
 		"""
 		poll for new messages (incoming and outgoing) and enqueue to `queue`.
 		"""
+
 		def check_unread():
 			timeout_opt = (pycurl.TIMEOUT_MS, 0)
 			# this could raise errors
@@ -200,14 +205,21 @@ class Servblr:
 			5*HR: 90 }
 
 		last_ts = time.time()
+
+		logger.debug('enter poll loop')
 		while True:
 			unread = check_unread()
 			#!! Why are we only acting on unread?
 			# We should act on every new message, incoming or outgoing.
+			if not unread:
+				logger.debug('unread empty')
+
 			for chat_id in unread:
 				if allowed and chat_id not in allowed:
+					logger.debug(f'chat{chat_id} is not allowed, skipping it')
 					continue
 
+				logger.debug(f'chat{chat_id} has {unread[chat_id]} unreads')
 				limit = unread[chat_id] + 5
 				messages = self.get_messages(chat_id, limit=limit)
 
@@ -215,6 +227,7 @@ class Servblr:
 				messages = [m for m in messages if m.date > last_ts]
 				last_ts = messages[-1].date
 
+				logger.debug(f'queuing {len(messages)} messages')
 				for m in messages:
 					queue.put_nowait(m)
 
@@ -223,6 +236,7 @@ class Servblr:
 
 			for i in sorted(wait_time):
 				if tdelta <= i:
+					logger.debug(f'sleeping {wait_time[i]}')
 					wait_t = wait_time[i]
 					break
 
