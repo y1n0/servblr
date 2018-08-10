@@ -6,7 +6,7 @@ A Tumblr instant messages wrapper in Python
 ```python
 import servblr
 
-# Authorization is done via cookies (Do not talk to me about it.)
+# Authorization is done via cookies (Do not even talk to me about it.)
 # Copy a request made to tumblr in cUrl format and use it to initialize
 # the 'servblr'.
 curl_cmd = ''
