@@ -204,7 +204,8 @@ class Servblr:
 			2*HR: 60,
 			5*HR: 90 }
 
-		last_ts = time.time()
+		last_ts = dict()
+		start_time = time.time()
 
 		logger.debug('enter poll loop')
 		while True:
@@ -222,17 +223,20 @@ class Servblr:
 				logger.debug(f'chat{chat_id} has {unread[chat_id]} unreads')
 				limit = unread[chat_id] + 5
 				messages = self.get_messages(chat_id, limit=limit)
+				last_own_ts = last_ts.get(chat_id, start_time)
 
 				# eliminating the message already gotten
-				messages = [m for m in messages if m.date > last_ts]
-				last_ts = messages[-1].date
+				messages = [m for m in messages if m.date > last_own_ts]
+				last_ts[chat_id] = messages[-1].date
 
 				logger.debug(f'queuing {len(messages)} messages')
 				for m in messages:
 					queue.put_nowait(m)
 
 			# sleep	handler
-			tdelta = time.time() - last_ts
+			lastest_ts_key = min(last_ts, default='not_found', key=last_ts.get)
+			lastest_ts = last_ts.get(lastest_ts_key, start_time)
+			tdelta = time.time() - lastest_ts
 
 			for i in sorted(wait_time):
 				if tdelta <= i:
