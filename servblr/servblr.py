@@ -186,6 +186,7 @@ class Servblr:
 	def poll(self, queue, allowed=None):
 		"""
 		poll for new messages (incoming and outgoing) and enqueue to `queue`.
+		Unread messages that are available before polling starts are discarded.
 		"""
 
 		def check_unread():
@@ -223,11 +224,13 @@ class Servblr:
 				logger.debug(f'chat{chat_id} has {unread[chat_id]} unreads')
 				limit = unread[chat_id] + 5
 				messages = self.get_messages(chat_id, limit=limit)
+
+				# getting old last_ts and saving the new one
 				last_own_ts = last_ts.get(chat_id, start_time)
+				last_ts[chat_id] = messages[-1].date
 
 				# eliminating the message already gotten
 				messages = [m for m in messages if m.date > last_own_ts]
-				last_ts[chat_id] = messages[-1].date
 
 				logger.debug(f'queuing {len(messages)} messages')
 				for m in messages:
