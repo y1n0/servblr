@@ -211,24 +211,7 @@ class Servblr:
 		last_ts = dict()
 		start_time = time.time()
 
-		def sleep_handler(last_ts):
-			lastest_ts_key = min(last_ts, default='not_found', key=last_ts.get)
-			lastest_ts = last_ts.get(lastest_ts_key, start_time)
-			tdelta = time.time() - lastest_ts
-
-			for i in sorted(wait_time, reverse=True):
-				if tdelta >= i:
-					logger.debug(f'sleeping {wait_time[i]}')
-					time.sleep(wait_time[i])
-					break
-			else:
-				logger.debug('sleep max')
-				time.sleep(wait_time[max(wait_time)])
-
-
-		logger.debug('enter poll loop')
-		while True:
-			unread = check_unread()
+		def process_unread(unread):
 			#!! Why are we only acting on unread?
 			# We should act on every new message, incoming or outgoing.
 			for chat_id in unread:
@@ -250,6 +233,28 @@ class Servblr:
 				logger.debug(f'queuing {len(messages)} messages')
 				for m in messages:
 					queue.put_nowait(m)
+
+
+		def sleep_handler(last_ts):
+			lastest_ts_key = min(last_ts, default='not_found', key=last_ts.get)
+			lastest_ts = last_ts.get(lastest_ts_key, start_time)
+			tdelta = time.time() - lastest_ts
+
+			for i in sorted(wait_time, reverse=True):
+				if tdelta >= i:
+					logger.debug(f'sleeping {wait_time[i]}')
+					time.sleep(wait_time[i])
+					break
+			else:
+				logger.debug('sleep max')
+				time.sleep(wait_time[max(wait_time)])
+
+
+		logger.debug('enter poll loop')
+		while True:
+			unread = check_unread()
+
+			process_unread(unread)
 
 			# sleep	handler
 			sleep_handler(last_ts)
