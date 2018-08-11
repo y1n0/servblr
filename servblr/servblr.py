@@ -193,6 +193,7 @@ class Servblr:
 			timeout_opt = (pycurl.TIMEOUT_MS, 0)
 			# this could raise errors
 			r = self._counts(additional_opts=[timeout_opt])
+			logger.debug('unread chats: %d', len(r['unread_messages']))
 			return r['unread_messages']
 
 		SEC, MIN, HR = 1, 60, 3600
@@ -225,15 +226,11 @@ class Servblr:
 				time.sleep(wait_time[max(wait_time)])
 
 
-
 		logger.debug('enter poll loop')
 		while True:
 			unread = check_unread()
 			#!! Why are we only acting on unread?
 			# We should act on every new message, incoming or outgoing.
-			if not unread:
-				logger.debug('unread empty')
-
 			for chat_id in unread:
 				if allowed and chat_id not in allowed:
 					logger.debug(f'chat{chat_id} is not allowed, skipping it')
