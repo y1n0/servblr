@@ -197,16 +197,34 @@ class Servblr:
 
 		SEC, MIN, HR = 1, 60, 3600
 		wait_time = {
+			0: .5,
 			30*SEC: 1,
 			1*MIN: 2,
 			5*MIN: 3,
-			20*MIN: 5,
+			20*MIN: 10,
 			1*HR: 45,
 			2*HR: 60,
-			5*HR: 90 }
+			5*HR: 90,
+			10*HR: 120}
 
 		last_ts = dict()
 		start_time = time.time()
+
+		def sleep_handler(last_ts):
+			lastest_ts_key = min(last_ts, default='not_found', key=last_ts.get)
+			lastest_ts = last_ts.get(lastest_ts_key, start_time)
+			tdelta = time.time() - lastest_ts
+
+			for i in sorted(wait_time, reverse=True):
+				if tdelta >= i:
+					logger.debug(f'sleeping {wait_time[i]}')
+					time.sleep(wait_time[i])
+					break
+			else:
+				logger.debug('sleep max')
+				time.sleep(wait_time[max(wait_time)])
+
+
 
 		logger.debug('enter poll loop')
 		while True:
@@ -237,20 +255,7 @@ class Servblr:
 					queue.put_nowait(m)
 
 			# sleep	handler
-			lastest_ts_key = min(last_ts, default='not_found', key=last_ts.get)
-			lastest_ts = last_ts.get(lastest_ts_key, start_time)
-			tdelta = time.time() - lastest_ts
-
-			for i in sorted(wait_time):
-				if tdelta <= i:
-					logger.debug(f'sleeping {wait_time[i]}')
-					wait_t = wait_time[i]
-					break
-
-			try:
-				time.sleep(wait_t)
-			except NameError:
-				break
+			sleep_handler(last_ts)
 
 
 	def _counts(self, **kwargs):
