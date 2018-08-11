@@ -223,7 +223,8 @@ class Servblr:
 				last_ts[chat_id] = messages[-1].date
 
 				# eliminating the message already gotten
-				messages = [m for m in messages if m.date > last_own_ts]
+				while messages[0].date <= last_own_ts:
+					messages.pop(0)
 
 				logger.debug(f'queuing {len(messages)} messages')
 				for m in messages:
