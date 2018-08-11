@@ -98,9 +98,6 @@ class Servblr:
 		"""
 		`before' takes a UNIX time in the form of `str', or `int'.
 				Used to retrieve older msgs.
-		`after' takes a value greater than the second element of
-				the tuple `poll' returns.
-				Used to reset unread counter
 		The maximum `limit' the server returns is 20. But we can
 		enforce whatever value we want internanlly (not implemented
 		yet.) If used with `only_incoming=True`, the results
@@ -189,13 +186,6 @@ class Servblr:
 		Unread messages that are available before polling starts are discarded.
 		"""
 
-		def check_unread():
-			timeout_opt = (pycurl.TIMEOUT_MS, 0)
-			# this could raise errors
-			r = self._counts(additional_opts=[timeout_opt])
-			logger.debug('unread chats: %d', len(r['unread_messages']))
-			return r['unread_messages']
-
 		SEC, MIN, HR = 1, 60, 3600
 		wait_time = {
 			0: .5,
@@ -207,9 +197,14 @@ class Servblr:
 			2*HR: 60,
 			5*HR: 90,
 			10*HR: 120}
-
 		last_ts = dict()
-		start_time = time.time()
+
+		def check_unread():
+			timeout_opt = (pycurl.TIMEOUT_MS, 0)
+			# this could raise errors
+			r = self._counts(additional_opts=[timeout_opt])
+			logger.debug('unread chats: %d', len(r['unread_messages']))
+			return r['unread_messages']
 
 		def process_unread(unread):
 			#!! Why are we only acting on unread?
@@ -234,7 +229,6 @@ class Servblr:
 				for m in messages:
 					queue.put_nowait(m)
 
-
 		def sleep_handler(last_ts):
 			lastest_ts_key = min(last_ts, default='not_found', key=last_ts.get)
 			lastest_ts = last_ts.get(lastest_ts_key, start_time)
@@ -250,6 +244,7 @@ class Servblr:
 				time.sleep(wait_time[max(wait_time)])
 
 
+		start_time = time.time()
 		logger.debug('enter poll loop')
 		while True:
 			unread = check_unread()
