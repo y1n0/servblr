@@ -19,7 +19,7 @@ class Chatblr(object):
 
 	def get_count(self):
 		"""return the number of new unread messages in the chat"""
-		counts = self.servblr._counts()['unread_messages']
+		counts = self.servblr.get_counts()
 		n = counts.get(str(self.chat_id), 0)
 		self.unread = n
 		return n
