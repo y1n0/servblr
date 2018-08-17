@@ -17,6 +17,14 @@ class Chatblr(object):
 		return self.participant.user_id
 
 
+	def get_count(self):
+		"""return the number of new unread messages in the chat"""
+		counts = self.servblr._counts()['unread_messages']
+		n = counts.get(str(self.chat_id), 0)
+		self.unread = n
+		return n
+
+
 	def get_messages(self, **kwargs):
 		"""shortcut for `Servblr.get_messages(Chatbr.chat_id, **kwargs)`"""
 		if not hasattr(self, 'servblr'):
