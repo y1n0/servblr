@@ -5,7 +5,7 @@ with open("README.md", "r") as f:
 
 setuptools.setup(
     name="servblr",
-    version="0.0.1",
+    version="0.0.2",
     license="MIT",
     author="y1n0",
     author_email="y1n0@pm.me",
