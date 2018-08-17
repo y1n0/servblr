@@ -180,78 +180,87 @@ class Servblr:
 		return msg
 
 
-	def poll(self, queue, allowed=None):
+	def poll(self, chat_id, queue, sleep_time=1, sleep_threshold=600):
 		"""
-		poll for new messages (incoming and outgoing) and enqueue to `queue`.
-		Unread messages that are available before polling starts are discarded.
+		Poll for new messages (incoming and outgoing) in `chat_id` and enqueue to `queue`.
+		New messages that are available before polling starts are discarded.
+		`queue` is a `queue` object (only `put_nowait` method is used.)
+		`sleep_time` is either a tuple of two: sleep time in normal phase,
+		and sleep time in sleep phase; or a number that will be used in both.
+		`sleep_threshold` is the number of seconds after the last msg after which
+		`poll` will enter sleep phase. In sleep phase, we don't query messages
+		from Tumblr until we know of the existence of new ones via `self.get_counts`.
 		"""
 
-		SEC, MIN, HR = 1, 60, 3600
-		wait_time = {
-			0: 1,
-			1*MIN: 2,
-			5*MIN: 3,
-			20*MIN: 10,
-			1*HR: 45,
-			2*HR: 60,
-			5*HR: 90,
-			10*HR: 120}
-		last_ts = dict()
+		if not hasattr(sleep_time, '__getitem__'):
+			sleep_time = (sleep_time,)*2
 
-		def check_unread():
-			timeout_opt = (pycurl.TIMEOUT_MS, 0)
-			# this could raise errors
-			r = self._counts(additional_opts=[timeout_opt])
-			logger.debug('unread chats: %d', len(r['unread_messages']))
-			return r['unread_messages']
+		last_ts = time.time()
 
-		def process_unread(unread):
-			#!! Why are we only acting on unread?
-			# We should act on every new message, incoming or outgoing.
-			for chat_id in unread:
-				if allowed and chat_id not in allowed:
-					logger.debug(f'chat{chat_id} is not allowed, skipping it')
-					continue
+		def sleep_phase(v=None):
+			if v == None:
+				return sleep_phase.on
+			elif v == True and sleep_phase.on == False:
+				sleep_phase.on = True
+				logger.debug(f'Sleep phase activated. Interval: {sleep_time[1]}')
+			elif v == False and sleep_phase.on == True:
+				sleep_phase.on = False
+				logger.debug(f'Sleep phase deactivated. Normal Interval: {sleep_time[0]}')
+		sleep_phase.on = False
 
-				logger.debug(f'chat{chat_id} has {unread[chat_id]} unreads')
-				limit = unread[chat_id] + 5
-				messages = self.get_messages(chat_id, limit=limit)
+		def check_for_new(chat_id):
+			if sleep_phase() and not self.get_counts().get(chat_id):
+				return []
 
-				# getting old last_ts and saving the new one
-				last_own_ts = last_ts.get(chat_id, start_time)
-				last_ts[chat_id] = messages[-1].date
+			messages = self.get_messages(chat_id)
 
-				# eliminating the message already gotten
-				while messages[0].date <= last_own_ts:
-					messages.pop(0)
+			# getting old last_ts and saving the new one
+			# If we delay this operation until filtering old msgs, we'd
+			# risk `messages` being empty which will raise an exception.
+			# So we do it here. But we still need the old value, so we
+			# make a copy of it. Good?
+			nonlocal last_ts
+			last_ts_copy = last_ts
+			last_ts = messages[-1].date
 
-				logger.debug(f'queuing {len(messages)} messages')
-				for m in messages:
-					queue.put_nowait(m)
+			# eliminate messages already gotten
+			while messages and messages[0].date <= last_ts_copy:
+				messages.pop(0)
+
+			# We can work here on the case of msgs that are not al-
+			# ready gotten but were not included with the new msgs
+			# received. However I think it is very  unlikely for
+			# this to happen if you don't send more than 10 msgs
+			# in a period of 1s for example :new_moon_with_face:
+
+			return messages
+			# all of what I said before is crap and
+			# and is not the perfect way to do shit
+			# I wrote and two times just to respect
+			# the line width because it looks good.
+
+		def enqueue_new(new_msgs):
+			if new_msgs:
+				logger.debug(f'Got {len(new_msgs)} new messages. Enqueuing them.')
+			for msg in new_msgs:
+				queue.put_nowait(msg)
 
 		def sleep_handler(last_ts):
-			lastest_ts_key = min(last_ts, default='not_found', key=last_ts.get)
-			lastest_ts = last_ts.get(lastest_ts_key, start_time)
-			tdelta = time.time() - lastest_ts
-
-			for i in sorted(wait_time, reverse=True):
-				if tdelta >= i:
-					logger.debug(f'sleeping {wait_time[i]}')
-					time.sleep(wait_time[i])
-					break
+			tdelta = time.time() - last_ts
+			if tdelta <= sleep_threshold:
+				sleep_phase(False)
+				time.sleep(sleep_time[0])
 			else:
-				logger.debug('sleep max')
-				time.sleep(wait_time[max(wait_time)])
+				sleep_phase(True)
+				time.sleep(sleep_time[1])
 
 
-		start_time = time.time()
-		logger.debug('enter poll loop')
+		logger.debug(f'Entering poll loop for chat{chat_id}')
 		while True:
-			unread = check_unread()
+			new_msgs = check_for_new(chat_id)
 
-			process_unread(unread)
+			enqueue_new(new_msgs)
 
-			# sleep	handler
 			sleep_handler(last_ts)
 
 

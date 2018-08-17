@@ -49,6 +49,14 @@ class Chatblr(object):
 		return self.servblr.send_image(self.chat_id, image, **kwargs)
 
 
+	def poll(self, queue, **kwargs):
+		"""shortcut for `Servblr.poll(Chatbr.chat, queue, **kwargs)`"""
+		if not hasattr(self, 'servblr'):
+			raise Exception('this chat does not have a servblr')
+
+		return self.servblr.poll(self.chat_id, queue, **kwargs)
+
+
 	@classmethod
 	def de_json(cls, json):
 		chat_id = json['id']
