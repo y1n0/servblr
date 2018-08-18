@@ -49,6 +49,14 @@ class Chatblr(object):
 		return self.servblr.send_image(self.chat_id, image, **kwargs)
 
 
+	def send_post(self, post, post_blog=None, **kwargs):
+		"""shortcut for `Servblr.send_post(Chatbr.chat_id, **kwargs)`"""
+		if not hasattr(self, 'servblr'):
+			raise Exception('this chat does not have a servblr')
+
+		return self.servblr.send_post(self.chat_id, post, post_blog, **kwargs)
+
+
 	def poll(self, queue, **kwargs):
 		"""shortcut for `Servblr.poll(Chatbr.chat, queue, **kwargs)`"""
 		if not hasattr(self, 'servblr'):

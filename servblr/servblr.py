@@ -180,6 +180,41 @@ class Servblr:
 		return msg
 
 
+	def send_post(self, chat_id, post, post_blog=None):
+		"""send a post type (POSTREF) message to `chat_id`.
+		The argument `post` should be either a dict that have two keys:
+		'id' and 'blog_name', or a post id (str or int).
+		If `post` is not a dict, it is then used as the id of the post
+		to send and the argument post_blog should be specified and it
+		will used as the post blog_name."""
+
+		try:
+			post_id = post['id']
+			post_blog = post['blog_name']
+		except TypeError:
+			post_id = post
+			if post_blog == None:
+				raise TypeError("'post_blog' should be specified " +
+				"if 'post' is not a post dict")
+
+		endpoint = 'https://www.tumblr.com/svc/conversations/messages'
+		params = {
+			'conversation_id': chat_id,
+			'participant': _long_user_id(self.whoami),
+			'type': 'POSTREF',
+			'post[id]': post_id,
+			'post[blog]': post_blog}
+
+		result = self._query(methods.POST, endpoint, params)
+
+		_is_meta_ok(result)
+
+		msg = result['response']['messages']['data'][0]
+		msg = Msgblr.de_json(msg, chat_id)
+
+		return msg
+
+
 	def poll(self, chat_id, queue, sleep_time=1, sleep_threshold=600):
 		"""
 		Poll for new messages (incoming and outgoing) in `chat_id` and enqueue to `queue`.
